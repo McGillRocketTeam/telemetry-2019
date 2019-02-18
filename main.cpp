@@ -8,6 +8,8 @@
 #include <utility/imumaths.h>
 #include <Adafruit_GPS.h>
 
+#define commserial Serial2
+
 Adafruit_BMP280 bmp;
 Adafruit_BNO055 bno = Adafruit_BNO055(55);
 
@@ -31,14 +33,10 @@ static int create_file();
 static void read_data();
 static void store_data();
 
-
-
-
 /*GPS*/
 #define mySerial Serial1
 
 Adafruit_GPS GPS(&mySerial);
-
 
 // Set GPSECHO to 'false' to turn off echoing the GPS data to the Serial console
 // Set to 'true' if you want to debug and listen to the raw GPS sentences. 
@@ -61,11 +59,10 @@ void setup() {
   create_file();
   ground_alt = bmp.readAltitude();
   
+  commserial.begin(9600);
 
-
-
-  GPS.begin(9600);
-  mySerial.begin(9600);
+  GPS.begin(4800);
+  mySerial.begin(4800);
   
   // uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
   GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
@@ -92,12 +89,9 @@ void setup() {
   useInterrupt(true);
 #endif
 
-
-
-
-
   delay(1000);
 
+  // initial values
   alt_previous = ground_alt;
   t_previous = millis();
 }
@@ -138,7 +132,6 @@ void loop() {
 }
 
 static int create_file() {
-  // TODO
   //load name of file
   String file_name = file_prefix + file_num + file_type;
   char data_file_char_array[file_name.length() + 1];
@@ -150,15 +143,11 @@ static int create_file() {
     File temp = SD.open(data_file_char_array, FILE_WRITE);
     temp.close();
   }
-  
-
   return 0;
 }
 
 static void read_data()
 {
-
-  
   imu::Vector<3> accel_euler = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
   accel_x = accel_euler.x();
   accel_y = accel_euler.y();
@@ -187,7 +176,6 @@ static void read_data()
   alt_previous = alt;    
    
   //Read from GPS
-  // TODO
    // in case you are not using the interrupt above, you'll
   // need to 'hand query' the GPS, not suggested :(
   if (! usingInterrupt) {
@@ -212,16 +200,12 @@ static void read_data()
   // if millis() or timer wraps around, we'll just reset it
   if (timer > millis())  timer = millis();
 
-
-
-
-  // Edit to add GPS stuff
-
   datastring = "";
+
+  // DEBUGGING
   // approximately every 2 seconds or so, print out the current stats
   if (millis() - timer > 2000) { 
     timer = millis(); // reset the timer
-    
     
     Serial.print("Fix: "); Serial.print((int)GPS.fix);
     Serial.print(" quality: "); Serial.println((int)GPS.fixquality); 
@@ -236,6 +220,7 @@ static void read_data()
       Serial.print("Altitude: "); Serial.println(GPS.altitude);
       Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
 
+      datastring += "S";  // start of transmission
       datastring += String(GPS.latitude);
       datastring += GPS.lat;
       datastring += ", ";
@@ -248,28 +233,26 @@ static void read_data()
       datastring += ",";
       datastring += String(GPS.altitude);
       datastring += "\n";
-      
     }
   
-  datastring += alt;
-  datastring += ",";
-  datastring += String(time_passed,0);
-  datastring += ",";
-  datastring += temperature;
-  datastring += ",";
-  datastring += vel;
-  datastring += ",";
-  datastring += accel_magnitude;
-  datastring += ",";
-  datastring += "E";
+    datastring += alt;
+    datastring += ",";
+    datastring += String(time_passed,0);
+    datastring += ",";
+    datastring += temperature;
+    datastring += ",";
+    datastring += vel;
+    datastring += ",";
+    datastring += accel_magnitude;
+    datastring += ",";
+    datastring += "E";  // end of transmission
 
   // SEND TO XBEE
-  // TODO
-}
+  commserial.println(datastring);
+  }
 }
 
 static void store_data() {
-  
   datastring += String(accel_x,6);
   datastring += ",";
   datastring += String(accel_y,6);
