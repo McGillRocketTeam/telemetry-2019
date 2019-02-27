@@ -200,7 +200,9 @@ static void read_data()
   // if millis() or timer wraps around, we'll just reset it
   if (timer > millis())  timer = millis();
 
-  datastring = "";
+  datastring = "S";
+  datastring += String(GPS.fix);
+  datastring += ",";
 
   // DEBUGGING
   // approximately every 2 seconds or so, print out the current stats
@@ -220,7 +222,6 @@ static void read_data()
       Serial.print("Altitude: "); Serial.println(GPS.altitude);
       Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
 
-      datastring += "S";  // start of transmission
       datastring += String(GPS.latitude);
       datastring += GPS.lat;
       datastring += ", ";
@@ -232,6 +233,8 @@ static void read_data()
       datastring += String(GPS.angle);
       datastring += ",";
       datastring += String(GPS.altitude);
+      datastring += ",";
+      datastring += String(GPS.satellites);
       datastring += "\n";
     }
   
